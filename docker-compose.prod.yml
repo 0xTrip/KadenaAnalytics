@@ -1,0 +1,57 @@
+# docker-compose.prod.yml
+
+services:
+  db:
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - "${PGDATA_MOUNT_PATH}:/var/lib/postgresql/data/pgdata"
+      - "./db/init:/docker-entrypoint-initdb.d"
+
+  builder:
+    build:
+      context: .
+      dockerfile: builder.dockerfile
+    image: builder
+
+  indexer:
+    build:
+      context: .
+      dockerfile: indexer.dockerfile
+      args:
+        BUILDER_IMAGE: builder
+    image: indexer
+    restart: always
+    depends_on:
+      - builder
+      - db
+
+  api:
+    build:
+      context: .
+      dockerfile: api.dockerfile
+      args:
+        BUILDER_IMAGE: builder
+    restart: always
+    depends_on:
+      - db
+      - builder
+    ports:
+      - "${API_PORT}:${API_PORT}"
+
+  # Production Metabase
+  metabase:
+    image: metabase/metabase:latest
+    restart: always
+    container_name: metabase
+    depends_on:
+      - db
+    ports:
+      - "3001:3000"
+    # store Metabase's internal database on a volume so you don't lose settings
+    volumes:
+      - "./metabase-data:/metabase-data"
+    environment:
+      MB_DB_FILE: /metabase-data/metabase.db
