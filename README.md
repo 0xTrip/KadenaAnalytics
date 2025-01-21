@@ -43,7 +43,7 @@ Once the node is setup and synced you can continue with the installation:
 
 1. Clone the repository:
 ```
-git clone git@github.com:ThinEdgeLabs/bento.git
+git clone git@github.com:0xTrip/KadenaAnalytics.git
 ```
 2. Create a `.env` file, check the `.env-example` to see how it should look like.
 3. Start the containers:
