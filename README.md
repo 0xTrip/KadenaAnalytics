@@ -1,4 +1,4 @@
-# Bento - 0.1.0
+# BentoX - 0.1.0
 
 Bento is an indexing solution for [Kadena](https://kadena.io) blockchain written in Rust, based on https://github.com/ThinEdgeLabs/bento. This version has advanced analytics capabilities for understanding user behavior and token movements.
 
