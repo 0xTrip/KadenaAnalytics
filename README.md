@@ -1,6 +1,6 @@
 # Bento - 0.1.0
 
-Bento is an indexing solution for [Kadena](https://kadena.io) blockchain written in Rust, with advanced analytics capabilities for understanding user behavior and token movements.
+Bento is an indexing solution for [Kadena](https://kadena.io) blockchain written in Rust, based on https://github.com/ThinEdgeLabs/bento. This version has advanced analytics capabilities for understanding user behavior and token movements.
 
 [![Build Status:](https://github.com/ThinEdgeLabs/bento/workflows/CI%20Tests/badge.svg)](https://github.com/ThinEdgeLabs/bento/actions?query=workflow%3A%22CI+Tests%22+branch%3Amain)
 
@@ -32,9 +32,9 @@ Bento is an indexing solution for [Kadena](https://kadena.io) blockchain written
 * [Docker] (optional)
 * Metabase (for analytics visualization)
 
-#### Using Docker
+### Using Docker
 
-The fastest way is to use Docker / Docker Compose as the repo already comes with a docker-compose configuration file.
+The fastest way is to use Docker / Docker Compose  as the repo already comes with a docker-compose configuration file.
 Alternatively you would need to install PostgreSQL, [rust and cargo to build](Build with Cargo) and then execute the binaries.
 
 **Important**: the `headerStream` chainweb node config needs to be set to `true`. You can check the [configuring the node](https://github.com/kadena-io/chainweb-data#configuring-the-node) section of `chainweb-data` for more details.
@@ -42,64 +42,172 @@ Alternatively you would need to install PostgreSQL, [rust and cargo to build](Bu
 Once the node is setup and synced you can continue with the installation:
 
 1. Clone the repository:
-git clone git@github.com:YourUsername/bento.git
-Copy2. Create a `.env` file, check the `.env-example` to see how it should look like.
+```
+git clone git@github.com:ThinEdgeLabs/bento.git
+```
+2. Create a `.env` file, check the `.env-example` to see how it should look like.
 3. Start the containers:
+```
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-Copy
-[Previous installation instructions remain the same...]
+```
 
-## Analytics Features
+#### Build with Cargo
 
-Bento now includes powerful analytics capabilities designed to help you understand real user behavior:
+1. Install Rust and Cargo using [rustup].
 
-### Token Analysis
-* Track token holding periods
-* Monitor token transfer patterns
-* Analyze token distribution
+2. Build
 
-### User Behavior
-* Distinguish between real users and automated accounts
-* Track wallet interaction patterns
-* Measure user engagement metrics
+```
+cargo build --release
+```
+The binaries are available at `./target/release/api` and `./target/release/indexer`.
 
-### Wallet Analysis
-* Map wallet relationships
-* Track transaction frequencies
-* Identify connected wallet clusters
+## Usage
 
-### Using Analytics
-
-Access analytics through:
-
-1. Direct API endpoints:
+If you used Docker the *indexer* and *api* services should already be up and running. Additionally you can run one of the available indexer subcommands like this:
 ```bash
-# Get token holding periods
-GET /analytics/holding-period/{token_id}
+# docker compose -f docker-compose.yml -f docker-compose.prod.yml run indexer [subcommand]
+docker compose -f docker-compose.yml -f docker-compose.prod.yml run indexer backfill
+```
 
-# Get wallet connections
-GET /analytics/wallet-connections/{address}
+Manually starting the services:
 
-# Get transaction frequency
-GET /analytics/tx-frequency/{address}
+**API**:
+```bash
+./target/release/api
 
-Metabase Dashboard:
+[2023-09-10T08:49:14Z INFO  actix_server::builder] starting 8 workers
+[2023-09-10T08:49:14Z INFO  actix_server::server] Actix runtime found; starting in Actix runtime
+```
+**Indexer**:
+```bash
+By default new blocks are indexed as they are mined. For backfilling and filling gaps use the subcommands
+Usage: indexer [COMMAND]
 
+Commands:
+  backfill  Backfill blocks
+  gaps      Index missed blocks
+  help      Print this message or the help of the given subcommand(s)
 
-Access at http://your-host:3001
-Pre-built dashboards for common metrics
-Create custom visualizations
+Options:
+  -h, --help  Print help
+```
 
-[Previous API documentation remains the same...]
-Development
-[Previous development instructions remain the same...]
-Analytics Development
-To extend the analytics capabilities:
+## API
 
-Add new metrics in src/indexer/analytics.rs
-Create corresponding API endpoints in src/api/routes/analytics.rs
-Add Metabase visualizations for new metrics
+Available endpoints:
 
-[Previous contributing guidelines remain the same...]
-License
-[Previous license information remains the same...]
+* GET /tx/{request_key} - get tx result for given request key. If it's a multi-step tx, it will return all completed steps as well.
+* POST /txs - get tx results for multiple request keys. Payload example:
+```json
+{"request_keys": ["req-key-1", "req-key-2"]}
+```
+* GET /transfers?from={account_from}&to={account_to}&min_height={100}
+* GET /balance/{account} - get balances of all tokens for given account
+* GET /balance/{account}/{module} - get token balance on all chains for given account and module
+
+## Development
+
+### Setting up Bento locally
+
+1. Install Rust using [rustup], which allows you to easily switch between Rust versions. Bento currently supports Rust Stable and Rust Beta.
+
+2. Install [diesel](https://diesel.rs/guides/getting-started) using cargo:
+```
+cargo install diesel_cli --no-default-features --features postgres
+```
+
+3. Install [docker]. Alternatively, you can manually install PostgreSQL on your local machine.
+
+4. Clone this repository and open it in your favorite editor.
+
+5. Create a `.env` file in the project directory with database connection details, Chainweb node host and others. See [.env-sample](.env-sample) for an example how this should look like.
+
+6. Start postgres and adminer containers:
+```
+docker compose up -d
+```
+
+7. Create the database used for tests:
+```
+diesel database setup --database-url=postgres://postgres:postgres@localhost/bento_test
+```
+
+8. To confirm everything is setup correctly, try running the test suite:
+```bash
+cargo test
+```
+
+9. Start the indexer using cargo:
+```
+cargo run --bin indexer
+```
+
+10. Start the api using cargo:
+```
+cargo run --bin api
+```
+
+### Coding Style
+
+We follow the [Rust Style Guide](https://github.com/rust-dev-tools/fmt-rfcs/blob/master/guide/guide.md), enforced using [rustfmt](https://github.com/rust-lang/rustfmt).
+To run rustfmt tests locally:
+
+1. Use rustup to set rust toolchain to the version specified in the
+   [rust-toolchain file](./rust-toolchain).
+
+2. Install the rustfmt and clippy by running
+   ```
+   rustup component add rustfmt
+   rustup component add clippy
+   ```
+
+3. Run clippy using cargo from the root of your bento repo.
+   ```
+   cargo clippy
+   ```
+   Each PR needs to compile without warning.
+
+4. Run rustfmt using cargo from the root of your bento repo.
+
+   To see changes that need to be made, run
+
+   ```
+   cargo fmt --all -- --check
+   ```
+
+   If all code is properly formatted (e.g. if you have not made any changes),
+   this should run without error or output.
+   If your code needs to be reformatted,
+   you will see a diff between your code and properly formatted code.
+   If you see code here that you didn't make any changes to
+   then you are probably running the wrong version of rustfmt.
+   Once you are ready to apply the formatting changes, run
+
+   ```
+   cargo fmt --all
+   ```
+
+   You won't see any output, but all your files will be corrected.
+
+You can also use rustfmt to make corrections or highlight issues in your editor.
+Check out [their README](https://github.com/rust-lang/rustfmt) for details.
+
+[rustup]: https://rustup.rs/
+[docker]: https://www.docker.com
+
+## Contributing
+
+Contributions welcome, put in a PR.
+
+## License
+
+<!-- REUSE-IgnoreStart -->
+
+Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+[https://www.apache.org/licenses/LICENSE-2.0](https://www.apache.org/licenses/LICENSE-2.0)> or the MIT license
+<LICENSE-MIT or [https://opensource.org/licenses/MIT](https://opensource.org/licenses/MIT)>, at your
+option. Files in the project may not be
+copied, modified, or distributed except according to those terms.
+
+<!-- REUSE-IgnoreEnd -->
